@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>瀏覽器自動化插件測試</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the modal overlay and content */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            transition: opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none; /* Prevent clicks when hidden */
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto; /* Allow clicks when visible */
+        }
+        .modal-content {
+            transform: scale(0.95);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen">
+
+    <div class="max-w-4xl mx-auto p-6 mt-10">
+        
+        <!-- Header Section -->
+        <div class="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-bold text-gray-900">瀏覽器自動化插件測試</h1>
+            <button id="addBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md shadow-sm transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                新增
+            </button>
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            編號
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            物品名
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            廠牌
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Data rows will be inserted here dynamically -->
+                    <!-- Placeholder row if no data -->
+                    <tr id="emptyRow">
+                        <td colspan="3" class="px-6 py-8 text-center text-gray-500 italic">
+                            目前沒有資料，請點擊「新增」按鈕加入資料。
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Container (Hidden by default) -->
+    <div id="modalOverlay" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center">
+        
+        <!-- Modal Content Box -->
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 relative">
+            
+            <!-- Close button (X) top right -->
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            <!-- Modal Header -->
+            <h2 class="text-xl font-bold text-gray-900 mb-6">新增物品資料</h2>
+
+            <!-- Form within Modal -->
+            <form id="itemForm" class="space-y-4">
+                <div>
+                    <label for="itemCode" class="block text-sm font-medium text-gray-700 mb-1">編號</label>
+                    <input type="text" id="itemCode" name="itemCode" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        placeholder="請輸入編號">
+                </div>
+
+                <div>
+                    <label for="itemName" class="block text-sm font-medium text-gray-700 mb-1">物品名</label>
+                    <input type="text" id="itemName" name="itemName" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        placeholder="請輸入物品名稱">
+                </div>
+
+                <div>
+                    <label for="itemBrand" class="block text-sm font-medium text-gray-700 mb-1">廠牌</label>
+                    <input type="text" id="itemBrand" name="itemBrand" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        placeholder="請輸入廠牌">
+                </div>
+
+                <!-- Modal Footer / Action Buttons -->
+                <div class="mt-8 flex justify-end space-x-3">
+                    <button type="button" id="cancelBtn"
+                        class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 font-medium py-2 px-4 rounded-md shadow-sm transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        取消
+                    </button>
+                    <button type="submit" id="saveBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md shadow-sm transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        儲存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const addBtn = document.getElementById('addBtn');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const itemForm = document.getElementById('itemForm');
+            const dataTableBody = document.getElementById('dataTableBody');
+            const emptyRow = document.getElementById('emptyRow');
+
+            // --- Functions ---
+
+            // Function to open the modal
+            const openModal = () => {
+                modalOverlay.classList.add('active');
+                // Focus the first input field when opened
+                setTimeout(() => document.getElementById('itemCode').focus(), 100);
+            };
+
+            // Function to close the modal and reset the form
+            const closeModal = () => {
+                modalOverlay.classList.remove('active');
+                itemForm.reset(); // Clear input fields
+            };
+
+            // Function to handle form submission
+            const handleFormSubmit = (e) => {
+                e.preventDefault(); // Prevent default form submission (page reload)
+
+                // Get values from input fields
+                const code = document.getElementById('itemCode').value.trim();
+                const name = document.getElementById('itemName').value.trim();
+                const brand = document.getElementById('itemBrand').value.trim();
+
+                // Basic validation (though HTML 'required' handles most of this)
+                if (!code || !name || !brand) {
+                    // Using console instead of alert as requested by rules
+                    console.warn('請填寫所有欄位');
+                    return; 
+                }
+
+                // Add data to table
+                addDataToTable(code, name, brand);
+
+                // Close modal after saving
+                closeModal();
+            };
+
+            // Function to append a new row to the data table
+            const addDataToTable = (code, name, brand) => {
+                // Remove the "empty data" row if it exists
+                if (emptyRow) {
+                    emptyRow.style.display = 'none';
+                }
+
+                // Create a new table row element
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 transition-colors duration-150';
+                
+                // Construct the inner HTML of the row with the provided data
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHTML(code)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHTML(name)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${escapeHTML(brand)}</td>
+                `;
+
+                // Append the new row to the table body
+                dataTableBody.appendChild(tr);
+            };
+
+            // Helper function to escape HTML characters to prevent XSS attacks
+            // Useful since we are taking user input and rendering it directly
+            const escapeHTML = (str) => {
+                return str.replace(/[&<>'"]/g, 
+                    tag => ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        "'": '&#39;',
+                        '"': '&quot;'
+                    }[tag])
+                );
+            };
+
+
+            // --- Event Listeners ---
+
+            // Open modal when "新增" button is clicked
+            addBtn.addEventListener('click', openModal);
+
+            // Close modal when "X" button is clicked
+            closeModalBtn.addEventListener('click', closeModal);
+
+            // Close modal when "取消" button is clicked
+            cancelBtn.addEventListener('click', closeModal);
+
+            // Close modal if user clicks outside the modal content (on the overlay)
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+
+            // Handle form submission when "儲存" is clicked (or Enter is pressed)
+            itemForm.addEventListener('submit', handleFormSubmit);
+
+            // Add support for pressing Escape key to close modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
